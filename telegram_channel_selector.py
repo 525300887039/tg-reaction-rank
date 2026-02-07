@@ -12,7 +12,7 @@ from typing import Any
 
 from telethon import TelegramClient
 
-from config_loader import TARGET_EMOJIS, load_config
+from config_loader import load_config
 
 # ==================== 配置区域 ====================
 _cfg = load_config()
@@ -23,6 +23,7 @@ PROXY = _cfg['proxy']
 PHONE = _cfg['phone']
 CODE = _cfg['code']
 PASSWORD = _cfg['password']
+TARGET_EMOJIS = _cfg['target_emojis']
 
 # ===================================================================================
 

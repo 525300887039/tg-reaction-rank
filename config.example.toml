@@ -22,3 +22,4 @@ password = ""           # 或通过环境变量 TELEGRAM_PASSWORD 设置
 channel = "your_channel_username"
 start_date = "2026-01-01 00:00:00"
 end_date = "2026-01-30 23:59:59"
+# target_emojis = ["❤️", "👍", "🔥"]  # 自定义目标表情（留空使用默认列表）

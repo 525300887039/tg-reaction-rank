@@ -11,10 +11,25 @@ import os
 import tomllib
 from typing import TypedDict
 
-TARGET_EMOJIS: list[str] = [
+DEFAULT_TARGET_EMOJIS: list[str] = [
     '❤️', '👍', '🤍', '💜', '💙', '💚', '💛', '🧡', '🖤', '🤎',
     '❤', '♥', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '👍🏻',
     '👍🏼', '👍🏽', '👍🏾', '👍🏿', '🙏', '🔥', '💯', '❣️', '♥️'
+]
+
+ALL_EMOJIS: list[str] = [
+    # 爱心系列
+    '❤️', '🤍', '💜', '💙', '💚', '💛', '🧡', '🖤', '🤎',
+    '❤', '♥', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '❣️', '♥️',
+    # 点赞系列
+    '👍', '👍🏻', '👍🏼', '👍🏽', '👍🏾', '👍🏿',
+    '👎', '👎🏻', '👎🏼', '👎🏽', '👎🏾', '👎🏿',
+    # 常用反应
+    '🙏', '🔥', '💯', '🎉', '🤩', '😍', '😂', '🤣',
+    '😢', '😭', '😱', '🤔', '🤯', '👏', '🙈',
+    '💩', '🤡', '🥱', '🥴', '😈', '🤮', '💊',
+    '🏆', '⚡', '🍌', '🖕', '👀', '🌚', '🐳',
+    '❤️‍🔥', '🆒', '👻', '🎃', '🕊', '🤝', '✍️',
 ]
 
 
@@ -29,6 +44,7 @@ class TelegramConfig(TypedDict):
     channel: str
     start_date: str
     end_date: str
+    target_emojis: list[str]
 
 
 _CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -105,6 +121,15 @@ def load_config() -> TelegramConfig:
     start_date = os.getenv('START_DATE') or analyzer.get('start_date', '')
     end_date = os.getenv('END_DATE') or analyzer.get('end_date', '')
 
+    # --- target_emojis ---
+    target_emojis_env = os.getenv('TARGET_EMOJIS')
+    if target_emojis_env:
+        target_emojis = [e.strip() for e in target_emojis_env.split(',') if e.strip()]
+    elif analyzer.get('target_emojis'):
+        target_emojis = list(analyzer['target_emojis'])
+    else:
+        target_emojis = list(DEFAULT_TARGET_EMOJIS)
+
     return {
         'api_id': api_id,
         'api_hash': api_hash,
@@ -116,4 +141,5 @@ def load_config() -> TelegramConfig:
         'channel': channel,
         'start_date': start_date,
         'end_date': end_date,
+        'target_emojis': target_emojis,
     }

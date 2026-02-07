@@ -19,7 +19,7 @@ import nest_asyncio
 import streamlit as st
 from telethon import TelegramClient
 
-from config_loader import TARGET_EMOJIS, load_config
+from config_loader import ALL_EMOJIS, DEFAULT_TARGET_EMOJIS, load_config
 
 # 允许嵌套事件循环
 nest_asyncio.apply()
@@ -70,6 +70,31 @@ def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
     """
     loop = get_or_create_event_loop()
     return loop.run_until_complete(coro)
+
+
+def refilter_reactions(messages: list[dict[str, Any]], target_emojis: list[str]) -> list[dict[str, Any]]:
+    """
+    根据目标表情列表重新计算每条消息的 reactions 值。
+
+    若消息缺少 ``reaction_details``（旧缓存），则保留原有 ``reactions`` 值不变。
+
+    参数
+    ----
+    messages : list[dict]
+        消息列表。
+    target_emojis : list[str]
+        当前选中的目标表情列表。
+
+    返回
+    ----
+    list[dict]
+        更新了 ``reactions`` 字段的消息列表（原地修改）。
+    """
+    for msg in messages:
+        details = msg.get('reaction_details')
+        if details is not None:
+            msg['reactions'] = sum(details.get(e, 0) for e in target_emojis)
+    return messages
 
 
 def get_cache_path(channel_id: int) -> str:
@@ -393,19 +418,21 @@ async def fetch_messages_async(channel: dict[str, Any], progress_bar: Any, statu
         async for message in client.iter_messages(entity, limit=None):
             total_checked += 1
 
-            reaction_count = 0
+            reaction_details: dict[str, int] = {}
             if message.reactions:
                 for reaction in message.reactions.results:
                     if hasattr(reaction.reaction, 'emoticon'):
                         emoji = reaction.reaction.emoticon
-                        if emoji in TARGET_EMOJIS:
-                            reaction_count += reaction.count
+                        reaction_details[emoji] = reaction.count
 
-            if reaction_count > 0 or message.reactions:
+            if reaction_details or message.reactions:
                 if hasattr(entity, 'username') and entity.username:
                     msg_link = f"https://t.me/{entity.username}/{message.id}"
                 else:
                     msg_link = f"https://t.me/c/{entity.id}/{message.id}"
+
+                target_emojis = st.session_state.get('target_emojis', DEFAULT_TARGET_EMOJIS)
+                reaction_count = sum(reaction_details.get(e, 0) for e in target_emojis)
 
                 messages_with_reactions.append({
                     'id': message.id,
@@ -414,6 +441,7 @@ async def fetch_messages_async(channel: dict[str, Any], progress_bar: Any, statu
                     'views': message.views or 0,
                     'forwards': message.forwards or 0,
                     'reactions': reaction_count,
+                    'reaction_details': reaction_details,
                     'total_reactions': sum(r.count for r in message.reactions.results) if message.reactions else 0,
                     'link': msg_link,
                     'has_photo': bool(message.photo),
@@ -802,6 +830,8 @@ def main() -> None:
         st.session_state.channels = []
     if 'results' not in st.session_state:
         st.session_state.results = None
+    if 'target_emojis' not in st.session_state:
+        st.session_state.target_emojis = list(DEFAULT_TARGET_EMOJIS)
 
     # 侧边栏 - 连接状态
     with st.sidebar:
@@ -834,6 +864,24 @@ def main() -> None:
                 st.session_state.connected = False
                 st.session_state.channels = []
                 st.session_state.results = None
+                st.rerun()
+
+        # 目标表情设置
+        with st.expander("目标表情设置"):
+            selected = st.multiselect(
+                "选择要统计的表情",
+                options=ALL_EMOJIS,
+                default=st.session_state.target_emojis,
+                key="emoji_selector",
+            )
+            if selected != st.session_state.target_emojis:
+                st.session_state.target_emojis = selected
+                if st.session_state.results is not None:
+                    refilter_reactions(st.session_state.results, selected)
+            if st.button("恢复默认", use_container_width=True):
+                st.session_state.target_emojis = list(DEFAULT_TARGET_EMOJIS)
+                if st.session_state.results is not None:
+                    refilter_reactions(st.session_state.results, DEFAULT_TARGET_EMOJIS)
                 st.rerun()
 
     # 主界面
@@ -893,6 +941,7 @@ def main() -> None:
 
             if cached_results is not None and not force_reanalyze:
                 # 层级1：有结果缓存且未忽略 → 直接使用
+                refilter_reactions(cached_results, st.session_state.target_emojis)
                 st.session_state.results = cached_results
                 st.session_state.selected_channel = selected_channel
                 st.session_state.cache_time = analyzed_at
@@ -974,6 +1023,11 @@ def main() -> None:
         if not results:
             st.warning("未找到任何有表情的消息")
         else:
+            # 旧缓存兼容提示
+            has_old_cache = any(msg.get('reaction_details') is None for msg in results)
+            if has_old_cache:
+                st.info("部分消息缺少表情明细数据（旧缓存），切换目标表情不会影响这些消息的统计值。建议勾选「忽略缓存」重新分析以获得完整数据。")
+
             # 关键词筛选
             keyword = st.session_state.get('keyword', '')
             if keyword:

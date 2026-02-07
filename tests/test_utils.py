@@ -1,6 +1,6 @@
 """工具函数测试。"""
 
-from streamlit_app import generate_report
+from streamlit_app import generate_report, refilter_reactions
 
 
 def test_generate_report_basic():
@@ -24,3 +24,41 @@ def test_generate_report_basic():
     assert '第 1 名' in report
     assert 'Test message' in report
     assert '42' in report
+
+
+def test_refilter_reactions_basic():
+    """refilter_reactions 应根据目标表情重新计算 reactions。"""
+    messages = [
+        {
+            'id': 1,
+            'reactions': 0,
+            'reaction_details': {'❤️': 10, '👍': 5, '🔥': 3},
+        },
+    ]
+    refilter_reactions(messages, ['❤️', '👍'])
+    assert messages[0]['reactions'] == 15
+
+
+def test_refilter_reactions_empty_target():
+    """目标表情为空时 reactions 应为 0。"""
+    messages = [
+        {
+            'id': 1,
+            'reactions': 99,
+            'reaction_details': {'❤️': 10, '👍': 5},
+        },
+    ]
+    refilter_reactions(messages, [])
+    assert messages[0]['reactions'] == 0
+
+
+def test_refilter_reactions_old_cache_preserved():
+    """缺少 reaction_details 的旧缓存消息应保留原有 reactions 值。"""
+    messages = [
+        {
+            'id': 1,
+            'reactions': 42,
+        },
+    ]
+    refilter_reactions(messages, ['❤️', '👍'])
+    assert messages[0]['reactions'] == 42
