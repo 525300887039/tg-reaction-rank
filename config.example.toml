@@ -1,0 +1,24 @@
+# Telegram 频道表情统计分析工具 - 配置文件示例
+# 使用方法: 复制此文件为 config.toml 并填入你的真实值
+# 环境变量优先级高于此文件中的值
+
+[telegram]
+api_id = 12345678                       # 从 https://my.telegram.org/apps 获取
+api_hash = "your_api_hash_here"         # 从 https://my.telegram.org/apps 获取
+session_name = "telegram_session"       # 会话文件路径（相对于本目录）
+
+[proxy]
+enabled = true          # 设为 false 可禁用代理
+type = "HTTP"           # HTTP / SOCKS4 / SOCKS5
+host = "127.0.0.1"
+port = 7890
+
+[auth]
+phone = "+861XXXXXXXXXX"
+code = ""               # 或通过环境变量 TELEGRAM_CODE 设置
+password = ""           # 或通过环境变量 TELEGRAM_PASSWORD 设置
+
+[analyzer]
+channel = "your_channel_username"
+start_date = "2026-01-01 00:00:00"
+end_date = "2026-01-30 23:59:59"
