@@ -68,7 +68,7 @@ phone = "+861XXXXXXXXXX"
 ### Web 界面（推荐）
 
 ```bash
-streamlit run tg-reaction-rank/streamlit_app.py
+streamlit run streamlit_app.py
 ```
 
 1. 首次使用前，先在命令行完成登录授权（见下方）
@@ -83,7 +83,7 @@ streamlit run tg-reaction-rank/streamlit_app.py
 首次运行需要完成手机号验证：
 
 ```bash
-python tg-reaction-rank/telegram_channel_selector.py
+python telegram_channel_selector.py
 ```
 
 按提示输入验证码即可，登录状态会保存到 session 文件中。
@@ -93,7 +93,7 @@ python tg-reaction-rank/telegram_channel_selector.py
 在 `config.toml` 的 `[analyzer]` 中配置好频道和时间范围后：
 
 ```bash
-python tg-reaction-rank/telegram_reaction_analyzer.py
+python telegram_reaction_analyzer.py
 ```
 
 ## 环境变量
