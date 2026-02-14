@@ -11,18 +11,19 @@ import html
 import json
 import os
 import shutil
+import threading
 from collections.abc import Coroutine
 from datetime import datetime
 from typing import Any
 
-import nest_asyncio
 import streamlit as st
 from telethon import TelegramClient
 
 from config_loader import ALL_EMOJIS, DEFAULT_TARGET_EMOJIS, load_config
 
-# 允许嵌套事件循环
-nest_asyncio.apply()
+# 独立线程事件循环，替代 nest-asyncio
+_loop = asyncio.new_event_loop()
+threading.Thread(target=_loop.run_forever, daemon=True).start()
 
 # ==================== 配置区域 ====================
 _cfg = load_config()
@@ -34,42 +35,10 @@ PROXY = _cfg['proxy']
 # =================================================
 
 
-def get_or_create_event_loop() -> asyncio.AbstractEventLoop:
-    """
-    获取或创建事件循环。
-
-    返回
-    ----
-    asyncio.AbstractEventLoop
-        当前线程的事件循环；若已关闭或不存在则新建一个。
-    """
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop
-
-
 def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
-    """
-    在同步上下文中运行异步协程。
-
-    参数
-    ----
-    coro : coroutine
-        待执行的异步协程对象。
-
-    返回
-    ----
-    object
-        协程的返回值。
-    """
-    loop = get_or_create_event_loop()
-    return loop.run_until_complete(coro)
+    """在同步上下文中运行异步协程（通过独立线程的事件循环）。"""
+    future = asyncio.run_coroutine_threadsafe(coro, _loop)
+    return future.result()
 
 
 def refilter_reactions(messages: list[dict[str, Any]], target_emojis: list[str]) -> list[dict[str, Any]]:
