@@ -2,9 +2,70 @@
 核心分析逻辑，供 Bot / CLI 等多入口复用。
 """
 
+import glob
+import json
+import os
 from datetime import datetime
+from typing import Any
 
 from config_loader import DEFAULT_TARGET_EMOJIS
+
+
+def refilter_reactions(messages: list[dict[str, Any]], target_emojis: list[str]) -> list[dict[str, Any]]:
+    """根据目标表情列表重新计算每条消息的 reactions 值。"""
+    for msg in messages:
+        details = msg.get('reaction_details')
+        if details is not None:
+            msg['reactions'] = sum(details.get(e, 0) for e in target_emojis)
+    return messages
+
+
+def get_image_dir(channel_id: int) -> str:
+    """获取图片缓存目录路径，若不存在则自动创建。"""
+    img_dir = os.path.join(os.path.dirname(__file__), 'cache', 'images', str(channel_id))
+    os.makedirs(img_dir, exist_ok=True)
+    return img_dir
+
+
+def get_image_path(channel_id: int, message_id: int) -> str | None:
+    """查找已下载的消息配图，未找到时返回 None。"""
+    img_dir = get_image_dir(channel_id)
+    matches = glob.glob(os.path.join(img_dir, f'{message_id}.*'))
+    return matches[0] if matches else None
+
+
+def get_raw_cache_path(channel_id: int) -> str:
+    """获取原始数据缓存文件路径。"""
+    cache_dir = os.path.join(os.path.dirname(__file__), 'cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    return os.path.join(cache_dir, f'raw_{channel_id}.json')
+
+
+def save_raw_cache(channel_id: int, channel_title: str, messages: list[dict[str, Any]], total_checked: int) -> None:
+    """将原始消息数据写入缓存。"""
+    path = get_raw_cache_path(channel_id)
+    data = {
+        'channel_id': channel_id,
+        'channel_title': channel_title,
+        'fetched_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'total_checked': total_checked,
+        'messages': messages,
+    }
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def load_raw_cache(channel_id: int) -> tuple[list[dict[str, Any]] | None, int | None, str | None]:
+    """读取原始数据缓存，返回 (messages, total_checked, fetched_at)。"""
+    path = get_raw_cache_path(channel_id)
+    if not os.path.exists(path):
+        return None, None, None
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data['messages'], data['total_checked'], data['fetched_at']
+    except (json.JSONDecodeError, KeyError):
+        return None, None, None
 
 
 async def fetch_channel_messages(client, entity, target_emojis=None):

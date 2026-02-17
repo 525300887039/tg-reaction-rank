@@ -7,13 +7,20 @@ Bot 仅作为交互前端，实际数据通过 Telethon 用户客户端获取。
 
 import asyncio
 import logging
-import io
+import os
 import re
 
 from telethon import TelegramClient, events
 from telethon.tl.types import PeerChannel
 
-from analyzer_core import fetch_channel_messages
+from analyzer_core import (
+    fetch_channel_messages,
+    get_image_dir,
+    get_image_path,
+    load_raw_cache,
+    refilter_reactions,
+    save_raw_cache,
+)
 from config_loader import load_config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
@@ -72,13 +79,22 @@ async def main():
             return
 
         title = getattr(entity, 'title', str(getattr(entity, 'id', '?')))
-        await event.reply(f"正在分析频道「{title}」，请稍候...")
+        channel_id = entity.id
 
-        try:
-            messages, total = await fetch_channel_messages(user_client, entity, cfg['target_emojis'])
-        except Exception as e:
-            await event.reply(f"获取消息失败: {e}")
-            return
+        raw_messages, total, fetched_at = load_raw_cache(channel_id)
+        if raw_messages:
+            await event.reply(f"使用缓存数据（{fetched_at}），正在计算「{title}」排行...")
+            refilter_reactions(raw_messages, cfg['target_emojis'])
+            messages = raw_messages
+        else:
+            await event.reply(f"正在分析频道「{title}」，请稍候...")
+            try:
+                messages, total = await fetch_channel_messages(user_client, entity, cfg['target_emojis'])
+            except Exception as e:
+                await event.reply(f"获取消息失败: {e}")
+                return
+            if messages:
+                save_raw_cache(channel_id, title, messages, total)
 
         sorted_msgs = sorted(messages, key=lambda x: x['reactions'], reverse=True)[:50]
         if not sorted_msgs:
@@ -111,14 +127,18 @@ async def main():
             sent = False
             if msg.get('has_photo'):
                 try:
-                    tg_msg = await user_client.get_messages(entity, ids=msg['id'])
-                    if tg_msg and tg_msg.photo:
-                        buf = io.BytesIO()
-                        await user_client.download_media(tg_msg.photo, file=buf)
-                        buf.seek(0)
-                        buf.name = 'photo.jpg'
-                        await bot.send_file(chat, file=buf, caption=caption[:1024], force_document=False)
+                    cached_img = get_image_path(channel_id, msg['id'])
+                    if cached_img:
+                        await bot.send_file(chat, file=cached_img, caption=caption[:1024], force_document=False)
                         sent = True
+                    else:
+                        tg_msg = await user_client.get_messages(entity, ids=msg['id'])
+                        if tg_msg and tg_msg.photo:
+                            dest = os.path.join(get_image_dir(channel_id), str(msg['id']))
+                            downloaded = await user_client.download_media(tg_msg.photo, file=dest)
+                            if downloaded:
+                                await bot.send_file(chat, file=downloaded, caption=caption[:1024], force_document=False)
+                                sent = True
                 except Exception:
                     pass
 

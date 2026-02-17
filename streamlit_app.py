@@ -6,7 +6,6 @@ Telegram 频道表情统计分析 - Streamlit Web 界面。
 """
 
 import asyncio
-import glob
 import html
 import json
 import os
@@ -19,6 +18,14 @@ from typing import Any
 import streamlit as st
 from telethon import TelegramClient
 
+from analyzer_core import (
+    get_image_dir,
+    get_image_path,
+    get_raw_cache_path,
+    load_raw_cache,
+    refilter_reactions,
+    save_raw_cache,
+)
 from config_loader import ALL_EMOJIS, DEFAULT_TARGET_EMOJIS, load_config
 
 # 独立线程事件循环，替代 nest-asyncio
@@ -40,30 +47,6 @@ def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
     future = asyncio.run_coroutine_threadsafe(coro, _loop)
     return future.result()
 
-
-def refilter_reactions(messages: list[dict[str, Any]], target_emojis: list[str]) -> list[dict[str, Any]]:
-    """
-    根据目标表情列表重新计算每条消息的 reactions 值。
-
-    若消息缺少 ``reaction_details``（旧缓存），则保留原有 ``reactions`` 值不变。
-
-    参数
-    ----
-    messages : list[dict]
-        消息列表。
-    target_emojis : list[str]
-        当前选中的目标表情列表。
-
-    返回
-    ----
-    list[dict]
-        更新了 ``reactions`` 字段的消息列表（原地修改）。
-    """
-    for msg in messages:
-        details = msg.get('reaction_details')
-        if details is not None:
-            msg['reactions'] = sum(details.get(e, 0) for e in target_emojis)
-    return messages
 
 
 def get_cache_path(channel_id: int) -> str:
@@ -142,122 +125,8 @@ def save_cache(channel_id: int, channel_title: str, results: list[dict[str, Any]
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def get_image_dir(channel_id: int) -> str:
-    """
-    获取图片缓存目录路径。
-
-    若目录不存在则自动创建。
-
-    参数
-    ----
-    channel_id : int
-        频道 ID。
-
-    返回
-    ----
-    str
-        图片缓存目录的绝对路径。
-    """
-    img_dir = os.path.join(os.path.dirname(__file__), 'cache', 'images', str(channel_id))
-    os.makedirs(img_dir, exist_ok=True)
-    return img_dir
 
 
-def get_image_path(channel_id: int, message_id: int) -> str | None:
-    """
-    查找已下载的消息配图。
-
-    参数
-    ----
-    channel_id : int
-        频道 ID。
-    message_id : int
-        消息 ID。
-
-    返回
-    ----
-    str 或 None
-        匹配到的图片文件路径；未找到时返回 ``None``。
-    """
-    img_dir = get_image_dir(channel_id)
-    matches = glob.glob(os.path.join(img_dir, f'{message_id}.*'))
-    if matches:
-        return matches[0]
-    return None
-
-
-def get_raw_cache_path(channel_id: int) -> str:
-    """
-    获取原始数据缓存文件路径。
-
-    参数
-    ----
-    channel_id : int
-        频道 ID。
-
-    返回
-    ----
-    str
-        原始数据缓存文件的绝对路径。
-    """
-    cache_dir = os.path.join(os.path.dirname(__file__), 'cache')
-    os.makedirs(cache_dir, exist_ok=True)
-    return os.path.join(cache_dir, f'raw_{channel_id}.json')
-
-
-def save_raw_cache(channel_id: int, channel_title: str, messages: list[dict[str, Any]], total_checked: int) -> None:
-    """
-    将原始消息数据写入缓存。
-
-    保存未排序、无图片的原始数据，供后续排序和图片下载阶段使用。
-
-    参数
-    ----
-    channel_id : int
-        频道 ID。
-    channel_title : str
-        频道标题。
-    messages : list[dict]
-        原始消息列表。
-    total_checked : int
-        已检查的消息总数。
-    """
-    path = get_raw_cache_path(channel_id)
-    data = {
-        'channel_id': channel_id,
-        'channel_title': channel_title,
-        'fetched_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'total_checked': total_checked,
-        'messages': messages,
-    }
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def load_raw_cache(channel_id: int) -> tuple[list[dict[str, Any]] | None, int | None, str | None]:
-    """
-    读取原始数据缓存。
-
-    参数
-    ----
-    channel_id : int
-        频道 ID。
-
-    返回
-    ----
-    tuple[list | None, int | None, str | None]
-        ``(messages, total_checked, fetched_at)``；
-        缓存不存在或损坏时返回 ``(None, None, None)``。
-    """
-    path = get_raw_cache_path(channel_id)
-    if not os.path.exists(path):
-        return None, None, None
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return data['messages'], data['total_checked'], data['fetched_at']
-    except (json.JSONDecodeError, KeyError):
-        return None, None, None
 
 
 def clear_result_cache(channel_id: int) -> None:
