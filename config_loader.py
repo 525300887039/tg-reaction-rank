@@ -45,6 +45,7 @@ class TelegramConfig(TypedDict):
     start_date: str
     end_date: str
     target_emojis: list[str]
+    bot_token: str
 
 
 _CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -90,6 +91,7 @@ def load_config() -> TelegramConfig:
     api_id = int(api_id_raw) if api_id_raw is not None else None
 
     api_hash = os.getenv('TELEGRAM_API_HASH') or tg.get('api_hash')
+    bot_token = os.getenv('TELEGRAM_BOT_TOKEN') or tg.get('bot_token', '')
 
     session_rel = tg.get('session_name', 'telegram_session')
     session_name = os.path.normpath(os.path.join(_CONFIG_DIR, session_rel))
@@ -142,4 +144,5 @@ def load_config() -> TelegramConfig:
         'start_date': start_date,
         'end_date': end_date,
         'target_emojis': target_emojis,
+        'bot_token': bot_token,
     }

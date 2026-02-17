@@ -1,6 +1,6 @@
 # Telegram 频道表情统计分析工具
 
-分析 Telegram 频道消息的表情反应数据，按目标表情（爱心、点赞等）数量排序，找出最受欢迎的消息。支持 Web 界面和命令行两种使用方式。
+分析 Telegram 频道消息的表情反应数据，按目标表情（爱心、点赞等）数量排序，找出最受欢迎的消息。支持 Web 界面、Telegram Bot 和命令行三种使用方式。
 
 ## 功能特性
 
@@ -10,6 +10,7 @@
 - **自定义目标表情** — 在侧边栏自由选择要统计的表情，支持实时切换
 - **关键词筛选** — 只显示包含指定关键词的消息
 - **结果缓存** — 已分析过的频道直接使用缓存，支持强制重新分析
+- **Bot 交互** — 向 Telegram Bot 转发频道消息、发送频道链接或用户名，即可获取该频道 Reaction 排行 Top 50
 - **报告导出** — 下载为文本文件或一键发送到 Telegram 收藏夹
 - **代理支持** — 支持 HTTP / SOCKS4 / SOCKS5 代理，可通过配置文件开关
 
@@ -51,6 +52,7 @@ cp config.example.toml config.toml
 [telegram]
 api_id = 12345678
 api_hash = "your_api_hash_here"
+bot_token = ""              # 从 @BotFather 获取，用于 Bot 模式
 
 [proxy]
 enabled = true        # 不需要代理则设为 false
@@ -93,6 +95,20 @@ uv run python telegram_channel_selector.py
 
 按提示输入验证码即可，登录状态会保存到 session 文件中。
 
+### Telegram Bot
+
+1. 从 [@BotFather](https://t.me/BotFather) 创建 Bot 并获取 token
+2. 在 `config.toml` 的 `[telegram]` 段填入 `bot_token`
+3. 启动 Bot：
+
+```bash
+uv run python telegram_bot.py
+```
+
+4. 在 Telegram 中向 Bot 发送频道链接（如 `https://t.me/channel_name`）、用户名（如 `@channel_name`）或转发频道中的任意消息，即可收到该频道 Reaction 排行 Top 50
+
+> Bot 仅作为交互前端，实际数据通过已登录的用户客户端获取，因此需要先完成登录授权。
+
 ### 命令行 — 直接分析
 
 在 `config.toml` 的 `[analyzer]` 中配置好频道和时间范围后：
@@ -109,6 +125,7 @@ uv run python telegram_reaction_analyzer.py
 |------|------|-----------|
 | `TELEGRAM_API_ID` | Telegram API ID | `telegram.api_id` |
 | `TELEGRAM_API_HASH` | Telegram API Hash | `telegram.api_hash` |
+| `TELEGRAM_BOT_TOKEN` | Bot Token（@BotFather） | `telegram.bot_token` |
 | `TELEGRAM_PHONE` | 登录手机号 | `auth.phone` |
 | `TELEGRAM_CODE` | 登录验证码 | `auth.code` |
 | `TELEGRAM_PASSWORD` | 两步验证密码 | `auth.password` |
@@ -128,7 +145,9 @@ tg-reaction-rank/
 ├── config.example.toml              # 配置文件示例（提交到 git）
 ├── config.toml                      # 真实配置（已 gitignore）
 ├── config_loader.py                 # 共享配置加载模块
+├── analyzer_core.py                 # 核心分析逻辑（多入口复用）
 ├── streamlit_app.py                 # Streamlit Web 界面（主入口）
+├── telegram_bot.py                  # Telegram Bot 入口
 ├── telegram_channel_selector.py     # 命令行版频道选择器 / 登录工具
 ├── telegram_reaction_analyzer.py    # 命令行版表情统计分析
 ├── .streamlit/

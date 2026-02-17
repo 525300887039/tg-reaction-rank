@@ -6,6 +6,7 @@
 api_id = 12345678                       # 从 https://my.telegram.org/apps 获取
 api_hash = "your_api_hash_here"         # 从 https://my.telegram.org/apps 获取
 session_name = "telegram_session"       # 会话文件路径（相对于本目录）
+bot_token = ""                         # 从 @BotFather 获取，用于 telegram_bot.py
 
 [proxy]
 enabled = true          # 设为 false 可禁用代理
