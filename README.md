@@ -7,6 +7,7 @@
 - **频道列表浏览** — 连接 Telegram 账号，列出已加入的所有频道
 - **表情统计分析** — 遍历频道全部消息，统计目标表情（❤️👍 等）反应数量
 - **排行榜展示** — 按表情数量排序，生成可视化排行榜（Web 界面含消息配图）
+- **自定义目标表情** — 在侧边栏自由选择要统计的表情，支持实时切换
 - **关键词筛选** — 只显示包含指定关键词的消息
 - **结果缓存** — 已分析过的频道直接使用缓存，支持强制重新分析
 - **报告导出** — 下载为文本文件或一键发送到 Telegram 收藏夹
@@ -18,7 +19,7 @@
 
 ## 前置条件
 
-1. **Python >= 3.11**
+1. **Python 3.14**
 2. **Telegram API 凭据** — 访问 [my.telegram.org/apps](https://my.telegram.org/apps) 创建应用，获取 `API_ID` 和 `API_HASH`
 3. **网络代理**（可选） — 如果你所在的网络无法直连 Telegram，需要配置代理
 
@@ -33,7 +34,7 @@ uv sync
 或使用 pip：
 
 ```bash
-pip install telethon pysocks streamlit nest-asyncio
+pip install telethon pysocks streamlit
 ```
 
 ## 配置
@@ -59,6 +60,10 @@ port = 7890
 
 [auth]
 phone = "+861XXXXXXXXXX"
+
+[analyzer]
+channel = "your_channel_username"
+# target_emojis = ["❤️", "👍", "🔥"]  # 自定义目标表情（留空使用默认列表）
 ```
 
 配置优先级：**环境变量 > config.toml > 默认值**。
@@ -68,14 +73,14 @@ phone = "+861XXXXXXXXXX"
 ### Web 界面（推荐）
 
 ```bash
-streamlit run streamlit_app.py
+uv run streamlit run streamlit_app.py
 ```
 
 1. 首次使用前，先在命令行完成登录授权（见下方）
-2. 点击侧边栏「连接 Telegram」
+2. 启动后自动连接 Telegram（失败时可点击「重试连接」）
 3. 从下拉列表选择频道
 4. 点击「开始分析」（再次分析同一频道会自动使用缓存）
-5. 可通过关键词筛选过滤结果
+5. 可在侧边栏自定义目标表情、通过关键词筛选过滤结果
 6. 勾选「忽略缓存」可强制重新获取数据
 
 ### 命令行 — 登录授权
@@ -83,7 +88,7 @@ streamlit run streamlit_app.py
 首次运行需要完成手机号验证：
 
 ```bash
-python telegram_channel_selector.py
+uv run python telegram_channel_selector.py
 ```
 
 按提示输入验证码即可，登录状态会保存到 session 文件中。
@@ -93,7 +98,7 @@ python telegram_channel_selector.py
 在 `config.toml` 的 `[analyzer]` 中配置好频道和时间范围后：
 
 ```bash
-python telegram_reaction_analyzer.py
+uv run python telegram_reaction_analyzer.py
 ```
 
 ## 环境变量
@@ -110,6 +115,7 @@ python telegram_reaction_analyzer.py
 | `TELEGRAM_CHANNEL` | 目标频道用户名 | `analyzer.channel` |
 | `START_DATE` | 分析起始时间 | `analyzer.start_date` |
 | `END_DATE` | 分析结束时间 | `analyzer.end_date` |
+| `TARGET_EMOJIS` | 目标表情（逗号分隔） | `analyzer.target_emojis` |
 
 ## 项目结构
 
@@ -127,8 +133,10 @@ tg-reaction-rank/
 ├── telegram_reaction_analyzer.py    # 命令行版表情统计分析
 ├── .streamlit/
 │   └── config.toml                  # Streamlit 主题配置
-└── cache/                           # 分析结果缓存目录（自动生成）
-    └── channel_{id}.json
+└── cache/                           # 缓存目录（自动生成）
+    ├── channel_{id}.json            # 分析结果缓存
+    ├── raw_{id}.json                # 原始数据缓存
+    └── images/{id}/                 # 消息配图缓存
 ```
 
 ## 技术栈
@@ -136,5 +144,4 @@ tg-reaction-rank/
 - [Telethon](https://github.com/LonamiWebs/Telethon) — Telegram MTProto API 客户端
 - [Streamlit](https://streamlit.io/) — Web 界面框架
 - [PySocks](https://github.com/Anorov/PySocks) — 代理支持
-- [nest-asyncio](https://github.com/erdewit/nest_asyncio) — 嵌套事件循环支持
-- Python 3.11+ 标准库 `tomllib` — TOML 配置解析
+- Python 3.14 标准库 `tomllib` — TOML 配置解析
