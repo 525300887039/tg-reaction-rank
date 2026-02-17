@@ -812,21 +812,23 @@ def main() -> None:
         )
 
         if not st.session_state.connected:
-            if st.button("连接 Telegram", type="primary", use_container_width=True):
-                with st.spinner("正在连接..."):
-                    authorized, error = run_async(check_connection())
-                    if error:
-                        st.error(f"连接失败: {error}")
-                    elif not authorized:
-                        st.error("未授权，请先在命令行运行 telegram_channel_selector.py 完成登录")
+            with st.spinner("正在连接 Telegram..."):
+                authorized, error = run_async(check_connection())
+                if error:
+                    st.error(f"连接失败: {error}")
+                elif not authorized:
+                    st.error("未授权，请先在命令行运行 telegram_channel_selector.py 完成登录")
+                else:
+                    channels, err = run_async(fetch_channels())
+                    if err:
+                        st.error(f"获取频道失败: {err}")
                     else:
-                        channels, err = run_async(fetch_channels())
-                        if err:
-                            st.error(f"获取频道失败: {err}")
-                        else:
-                            st.session_state.connected = True
-                            st.session_state.channels = channels
-                            st.rerun()
+                        st.session_state.connected = True
+                        st.session_state.channels = channels
+                        st.rerun()
+            if not st.session_state.connected:
+                if st.button("重试连接", type="primary", use_container_width=True):
+                    st.rerun()
         else:
             st.success(f"已连接 · 已加载 {len(st.session_state.channels)} 个频道")
             if st.button("断开连接", use_container_width=True):
