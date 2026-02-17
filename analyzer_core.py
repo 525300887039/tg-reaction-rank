@@ -4,11 +4,19 @@
 
 import glob
 import json
+import math
 import os
 from datetime import datetime
 from typing import Any
 
 from config_loader import DEFAULT_TARGET_EMOJIS
+
+
+def calc_hotness(msg: dict) -> float:
+    """计算消息热度值。"""
+    score = msg['reactions'] * 0.7 + msg['forwards'] * 0.3
+    days = (datetime.now() - datetime.strptime(msg['date'], '%Y-%m-%d %H:%M:%S')).total_seconds() / 86400
+    return math.log(1 + score) / (days + 2) ** 0.3
 
 
 def refilter_reactions(messages: list[dict[str, Any]], target_emojis: list[str]) -> list[dict[str, Any]]:

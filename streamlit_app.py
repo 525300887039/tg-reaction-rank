@@ -19,6 +19,7 @@ import streamlit as st
 from telethon import TelegramClient
 
 from analyzer_core import (
+    calc_hotness,
     get_image_dir,
     get_image_path,
     get_raw_cache_path,
@@ -767,9 +768,13 @@ def main() -> None:
     if selected_name:
         selected_channel = st.session_state.channels[channel_labels.index(selected_name)]
 
-        col_kw, col_ck = st.columns([3, 1])
+        col_kw, col_sort, col_ck = st.columns([3, 1.5, 1])
         with col_kw:
             keyword = st.text_input("关键词筛选", value="", placeholder="留空则显示全部消息")
+        with col_sort:
+            sort_method = st.selectbox("排序方式", ["目标表情数量", "热度"], key="sort_method")
+            if sort_method == "热度":
+                st.caption("热度 = log(1 + 表情×0.7 + 转发×0.3) / (天数+2)^0.3")
         with col_ck:
             st.markdown("<br>", unsafe_allow_html=True)
             force_reanalyze = st.checkbox("忽略缓存")
@@ -877,7 +882,11 @@ def main() -> None:
                 filtered = results
 
             # 排序
-            sorted_results = sorted(filtered, key=lambda x: x['reactions'], reverse=True)
+            sort_method = st.session_state.get('sort_method', '目标表情数量')
+            if sort_method == '热度':
+                sorted_results = sorted(filtered, key=calc_hotness, reverse=True)
+            else:
+                sorted_results = sorted(filtered, key=lambda x: x['reactions'], reverse=True)
 
             # 统计汇总
             total_target = sum(m['reactions'] for m in filtered)
@@ -891,7 +900,8 @@ def main() -> None:
                 col4.metric("目标表情占比", f"{total_target/total_all*100:.1f}%")
 
             # 结果展示
-            st.markdown("### 排行榜（按目标表情数量排序）")
+            sort_label = "热度" if sort_method == "热度" else "目标表情数量"
+            st.markdown(f"### 排行榜（按{sort_label}排序）")
 
             for idx, msg in enumerate(sorted_results[:50], 1):
                 image_path = msg.get('image_path')
@@ -902,12 +912,15 @@ def main() -> None:
                 views_fmt = f"{msg['views']:,}"
                 forwards_fmt = f"{msg['forwards']:,}"
 
+                hotness_stat = f'<span class="rank-stat primary">🔥 热度 {calc_hotness(msg):.2f}</span>' if sort_method == '热度' else ''
+
                 card_html = (
                     f'<div class="rank-card">'
                     f'<span class="{badge_cls}">第 {idx} 名</span>'
                     f'<span style="color:#888; font-size:0.9em;">{html.escape(msg["date"])}</span>'
                     f'<div style="margin:10px 0;">{safe_text}</div>'
                     f'<div>'
+                    f'{hotness_stat}'
                     f'<span class="rank-stat primary">目标表情 {msg["reactions"]}</span>'
                     f'<span class="rank-stat">总表情 {msg["total_reactions"]}</span>'
                     f'<span class="rank-stat">浏览 {views_fmt}</span>'
