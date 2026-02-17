@@ -827,11 +827,11 @@ def main() -> None:
                         st.session_state.channels = channels
                         st.rerun()
             if not st.session_state.connected:
-                if st.button("重试连接", type="primary", use_container_width=True):
+                if st.button("重试连接", type="primary", width="stretch"):
                     st.rerun()
         else:
             st.success(f"已连接 · 已加载 {len(st.session_state.channels)} 个频道")
-            if st.button("断开连接", use_container_width=True):
+            if st.button("断开连接", width="stretch"):
                 st.session_state.connected = False
                 st.session_state.channels = []
                 st.session_state.results = None
@@ -849,7 +849,7 @@ def main() -> None:
                 st.session_state.target_emojis = selected
                 if st.session_state.results is not None:
                     refilter_reactions(st.session_state.results, selected)
-            if st.button("恢复默认", use_container_width=True):
+            if st.button("恢复默认", width="stretch"):
                 st.session_state.target_emojis = list(DEFAULT_TARGET_EMOJIS)
                 if st.session_state.results is not None:
                     refilter_reactions(st.session_state.results, DEFAULT_TARGET_EMOJIS)
@@ -965,11 +965,11 @@ def main() -> None:
         # 侧边栏 - 缓存管理（仅在选择了频道后显示）
         with st.sidebar:
             with st.expander("缓存管理"):
-                if st.button("清除结果缓存", use_container_width=True):
+                if st.button("清除结果缓存", width="stretch"):
                     clear_result_cache(selected_channel['id'])
                     st.session_state.results = None
                     st.rerun()
-                if st.button("清除所有缓存", use_container_width=True):
+                if st.button("清除所有缓存", width="stretch"):
                     clear_all_cache(selected_channel['id'])
                     st.session_state.results = None
                     st.rerun()
@@ -1054,7 +1054,7 @@ def main() -> None:
                 if has_image:
                     col_img, col_info = st.columns([1, 3])
                     with col_img:
-                        st.image(image_path, use_container_width=True)
+                        st.image(image_path, width="stretch")
                     with col_info:
                         st.markdown(card_html, unsafe_allow_html=True)
                 else:
@@ -1078,7 +1078,7 @@ def main() -> None:
             col_send, col_download = st.columns(2)
 
             with col_send:
-                if st.button("发送到 Telegram 收藏", use_container_width=True):
+                if st.button("发送到 Telegram 收藏", width="stretch"):
                     with st.spinner("正在发送到收藏夹..."):
                         ok, err = run_async(send_report_to_saved(report_data, channel_title))
                         if ok:
@@ -1092,7 +1092,7 @@ def main() -> None:
                     data=generate_report(sorted_results, channel_title),
                     file_name=f"report_{channel_title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                     mime="text/plain",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
 
