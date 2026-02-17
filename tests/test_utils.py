@@ -1,6 +1,7 @@
 """工具函数测试。"""
 
-from streamlit_app import generate_report, refilter_reactions
+from analyzer_core import refilter_reactions
+from streamlit_app import generate_report
 
 
 def test_generate_report_basic():

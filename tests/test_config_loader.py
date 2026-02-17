@@ -39,7 +39,7 @@ def test_load_config_returns_expected_keys():
     expected_keys = {
         'api_id', 'api_hash', 'session_name', 'proxy',
         'phone', 'code', 'password', 'channel',
-        'start_date', 'end_date', 'target_emojis',
+        'start_date', 'end_date', 'target_emojis', 'bot_token',
     }
     assert set(cfg.keys()) == expected_keys
 
