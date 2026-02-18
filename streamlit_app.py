@@ -774,7 +774,7 @@ def main() -> None:
         with col_sort:
             sort_method = st.selectbox("排序方式", ["目标表情数量", "热度"], key="sort_method")
             if sort_method == "热度":
-                st.caption("热度 = log(1 + 表情×0.7 + 转发×0.3) / (天数+2)^0.3")
+                st.caption("热度 = log10(表情×0.7+转发×0.3) + 天数/800")
         with col_ck:
             st.markdown("<br>", unsafe_allow_html=True)
             force_reanalyze = st.checkbox("忽略缓存")
