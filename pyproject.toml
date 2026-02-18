@@ -1,0 +1,18 @@
+[project]
+name = "tg-reaction-rank"
+version = "0.1.0"
+description = "Telegram 频道表情统计分析工具"
+readme = "README.md"
+license = "MIT"
+requires-python = "==3.14.*"
+dependencies = [
+    "telethon>=1.42.0",
+    "pysocks>=1.7.1",
+    "streamlit>=1.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4.0",
+]
