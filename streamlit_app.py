@@ -20,6 +20,7 @@ from telethon import TelegramClient
 
 from analyzer_core import (
     calc_hotness,
+    filter_by_date_range,
     get_image_dir,
     get_image_path,
     get_raw_cache_path,
@@ -779,6 +780,12 @@ def main() -> None:
             st.markdown("<br>", unsafe_allow_html=True)
             force_reanalyze = st.checkbox("忽略缓存")
 
+        col_sd, col_ed, _ = st.columns([1.5, 1.5, 3])
+        with col_sd:
+            start_date = st.date_input("起始日期", value=None, key="start_date")
+        with col_ed:
+            end_date = st.date_input("截止日期", value=None, key="end_date")
+
         if st.button("开始分析", type="primary"):
             st.session_state.keyword = keyword
             channel_id = selected_channel['id']
@@ -880,6 +887,14 @@ def main() -> None:
                 st.info(f"当前关键词筛选: 「{keyword}」，匹配 {len(filtered)} 条消息")
             else:
                 filtered = results
+
+            # 日期范围过滤
+            sd = st.session_state.get('start_date')
+            ed = st.session_state.get('end_date')
+            filtered = filter_by_date_range(filtered, sd, ed)
+            if sd or ed:
+                date_hint = f"{sd or '...'} ~ {ed or '...'}"
+                st.info(f"日期范围: {date_hint}，匹配 {len(filtered)} 条消息")
 
             # 排序
             sort_method = st.session_state.get('sort_method', '目标表情数量')

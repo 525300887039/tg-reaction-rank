@@ -6,7 +6,7 @@ import glob
 import json
 import math
 import os
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from config_loader import DEFAULT_TARGET_EMOJIS
@@ -27,6 +27,21 @@ def refilter_reactions(messages: list[dict[str, Any]], target_emojis: list[str])
         if details is not None:
             msg['reactions'] = sum(details.get(e, 0) for e in target_emojis)
     return messages
+
+
+def filter_by_date_range(messages: list[dict[str, Any]], start_date: date | None, end_date: date | None) -> list[dict[str, Any]]:
+    """按日期范围过滤消息列表。"""
+    if not start_date and not end_date:
+        return messages
+    result = []
+    for msg in messages:
+        msg_date = datetime.strptime(msg['date'], '%Y-%m-%d %H:%M:%S').date()
+        if start_date and msg_date < start_date:
+            continue
+        if end_date and msg_date > end_date:
+            continue
+        result.append(msg)
+    return result
 
 
 def get_image_dir(channel_id: int) -> str:

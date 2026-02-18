@@ -9,6 +9,7 @@ import asyncio
 import logging
 import os
 import re
+from datetime import date
 
 from telethon import TelegramClient, events
 from telethon.tl.types import PeerChannel
@@ -16,6 +17,7 @@ from telethon.tl.types import PeerChannel
 from analyzer_core import (
     calc_hotness,
     fetch_channel_messages,
+    filter_by_date_range,
     get_image_dir,
     get_image_path,
     load_raw_cache,
@@ -114,8 +116,13 @@ async def main():
         user_id = event.sender_id
         text = (event.message.text or '').strip()
 
-        # 第二步：用户选择排序方式 → 加载数据 → 发送结果
-        if text in ('1', '2') and user_id in pending_sessions:
+        # 第二步：用户选择排序方式（可附带日期范围） → 加载数据 → 发送结果
+        sort_match = re.match(r'^([12])(?:\s+(\d{4}-\d{2}-\d{2}))?(?:\s+(\d{4}-\d{2}-\d{2}))?$', text)
+        if sort_match and user_id in pending_sessions:
+            sort_choice = sort_match.group(1)
+            start_date = date.fromisoformat(sort_match.group(2)) if sort_match.group(2) else None
+            end_date = date.fromisoformat(sort_match.group(3)) if sort_match.group(3) else None
+
             session = pending_sessions.pop(user_id)
             entity = session['entity']
             title = session['title']
@@ -156,7 +163,12 @@ async def main():
                 await event.reply(f"频道「{title}」没有找到含表情反应的消息。")
                 return
 
-            await send_results(event, session, messages, total, sort_by_hotness=(text == '1'))
+            messages = filter_by_date_range(messages, start_date, end_date)
+            if not messages:
+                await event.reply("指定日期范围内没有找到含表情反应的消息。")
+                return
+
+            await send_results(event, session, messages, total, sort_by_hotness=(sort_choice == '1'))
             return
 
         entity = None
@@ -196,9 +208,11 @@ async def main():
             'entity': entity, 'title': title, 'channel_id': channel_id,
         }
         await event.reply(
-            "请选择排序方式：\n"
+            "请选择排序方式（可附带日期范围）：\n"
             "1. 🔥 热度排序\n"
             "2. ❤️ 表情数量排序\n\n"
+            "📅 可选日期范围，例如：\n"
+            "1 2024-01-01 2024-12-31\n\n"
             "💡 热度 = log(1+表情×0.7+转发×0.3) / (天数+2)^0.3"
         )
 
