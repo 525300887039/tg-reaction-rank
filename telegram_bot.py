@@ -184,7 +184,7 @@ async def main():
 
         # 方式2：链接或用户名
         if entity is None:
-            m = re.match(r'(?:https?://t\.me/|@)([a-zA-Z][\w]{3,})', text)
+            m = re.match(r'(?:https?://)?t\.me/([a-zA-Z][\w]{3,})', text) or re.match(r'@([a-zA-Z][\w]{3,})', text)
             if m:
                 try:
                     entity = await user_client.get_entity(m.group(1))
