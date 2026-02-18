@@ -47,12 +47,10 @@ async def main():
 
     pending_sessions = {}
 
-    async def send_results(event, session, sort_by_hotness):
+    async def send_results(event, session, messages, total, sort_by_hotness):
         entity = session['entity']
         title = session['title']
         channel_id = session['channel_id']
-        messages = session['messages']
-        total = session['total']
 
         if sort_by_hotness:
             sorted_msgs = sorted(messages, key=calc_hotness, reverse=True)[:50]
@@ -116,10 +114,49 @@ async def main():
         user_id = event.sender_id
         text = (event.message.text or '').strip()
 
-        # 第二步：用户选择排序方式
+        # 第二步：用户选择排序方式 → 加载数据 → 发送结果
         if text in ('1', '2') and user_id in pending_sessions:
             session = pending_sessions.pop(user_id)
-            await send_results(event, session, sort_by_hotness=(text == '1'))
+            entity = session['entity']
+            title = session['title']
+            channel_id = session['channel_id']
+
+            raw_messages, total, fetched_at = load_raw_cache(channel_id)
+            if raw_messages:
+                await event.reply(f"使用缓存数据（{fetched_at}），正在加载「{title}」...")
+                refilter_reactions(raw_messages, cfg['target_emojis'])
+                messages = raw_messages
+            else:
+                progress_msg = await event.reply(f"正在分析频道「{title}」… 0%")
+
+                async def on_progress(pct):
+                    nonlocal progress_msg
+                    new_msg = await event.reply(f"正在分析频道「{title}」… {pct}%")
+                    try:
+                        await progress_msg.delete()
+                    except Exception:
+                        pass
+                    progress_msg = new_msg
+
+                try:
+                    messages, total = await fetch_channel_messages(
+                        user_client, entity, cfg['target_emojis'], on_progress=on_progress,
+                    )
+                except Exception as e:
+                    await event.reply(f"获取消息失败: {e}")
+                    return
+                try:
+                    await progress_msg.delete()
+                except Exception:
+                    pass
+                if messages:
+                    save_raw_cache(channel_id, title, messages, total)
+
+            if not messages:
+                await event.reply(f"频道「{title}」没有找到含表情反应的消息。")
+                return
+
+            await send_results(event, session, messages, total, sort_by_hotness=(text == '1'))
             return
 
         entity = None
@@ -155,29 +192,8 @@ async def main():
         title = getattr(entity, 'title', str(getattr(entity, 'id', '?')))
         channel_id = entity.id
 
-        raw_messages, total, fetched_at = load_raw_cache(channel_id)
-        if raw_messages:
-            await event.reply(f"使用缓存数据（{fetched_at}），正在加载「{title}」...")
-            refilter_reactions(raw_messages, cfg['target_emojis'])
-            messages = raw_messages
-        else:
-            await event.reply(f"正在分析频道「{title}」，请稍候...")
-            try:
-                messages, total = await fetch_channel_messages(user_client, entity, cfg['target_emojis'])
-            except Exception as e:
-                await event.reply(f"获取消息失败: {e}")
-                return
-            if messages:
-                save_raw_cache(channel_id, title, messages, total)
-
-        if not messages:
-            await event.reply(f"频道「{title}」没有找到含表情反应的消息。")
-            return
-
-        # 存入 pending session，等待用户选择排序方式
         pending_sessions[user_id] = {
             'entity': entity, 'title': title, 'channel_id': channel_id,
-            'messages': messages, 'total': total,
         }
         await event.reply(
             "请选择排序方式：\n"

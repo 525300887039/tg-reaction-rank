@@ -76,11 +76,12 @@ def load_raw_cache(channel_id: int) -> tuple[list[dict[str, Any]] | None, int | 
         return None, None, None
 
 
-async def fetch_channel_messages(client, entity, target_emojis=None):
+async def fetch_channel_messages(client, entity, target_emojis=None, on_progress=None):
     """
     获取频道所有含 reaction 的消息。
 
     返回 (messages_list, total_checked)。
+    on_progress: 可选异步回调，签名 async (percent: int) -> None，每跨越 10% 调用一次。
     """
     if target_emojis is None:
         target_emojis = DEFAULT_TARGET_EMOJIS
@@ -89,8 +90,16 @@ async def fetch_channel_messages(client, entity, target_emojis=None):
     messages = []
     total_checked = 0
 
+    estimated_total = (await client.get_messages(entity, limit=0)).total
+    last_reported = 0
+
     async for message in client.iter_messages(entity, limit=None):
         total_checked += 1
+        if on_progress and estimated_total:
+            pct = total_checked * 100 // estimated_total
+            if pct >= last_reported + 10:
+                last_reported = pct // 10 * 10
+                await on_progress(last_reported)
 
         reaction_details = {}
         if message.reactions:
